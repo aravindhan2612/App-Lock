@@ -13,7 +13,6 @@ import android.os.IBinder
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import com.pg.lockapp.R
-import com.pg.lockapp.presentation.LockAppApplication
 import com.pg.lockapp.presentation.LockAppApplication.Companion.CHANNEL_ID
 import com.pg.lockapp.presentation.LockAppApplication.Companion.CHANNEL_NAME
 import com.pg.lockapp.presentation.activity.MainActivity
@@ -68,9 +67,9 @@ class AutoStartService : Service() {
         val pendingIntent = PendingIntent.getActivity(
             this, 0, notificationIntent,
             PendingIntent.FLAG_IMMUTABLE
-        );
+        )
 
-        val notification = NotificationCompat.Builder(this, LockAppApplication.CHANNEL_ID)
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Auto start service")
             .setSmallIcon(R.drawable.ic_launcher_foreground)

@@ -36,8 +36,7 @@
             android:name=".presentation.services.AutoStartService"
             android:enabled="true"
             android:exported="true"
-            android:foregroundServiceType="specialUse"
-            tools:ignore="ForegroundServicePermission">
+            android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="app lock purpose" />
