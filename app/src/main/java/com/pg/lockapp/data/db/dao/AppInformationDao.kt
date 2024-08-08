@@ -20,6 +20,6 @@ interface AppInformationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(appInformationList: List<AppInformation>)
 
-    @Query("UPDATE app_info SET is_locked=:isLocked WHERE package_name = :packageName")
-    suspend fun update(isLocked: Boolean, packageName: String)
+    @Query("UPDATE app_info SET is_locked=:isLocked WHERE package_name = :packageName AND app_name = :appName")
+    suspend fun update(isLocked: Boolean, packageName: String, appName: String)
 }

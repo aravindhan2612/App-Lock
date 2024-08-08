@@ -7,5 +7,5 @@ interface AppInformationRepository {
     suspend fun getAppInfosFromRoom(): List<AppInformation>
     fun getAllAppInformationListAsFlow(): Flow<List<AppInformation>>
     suspend fun addAllAppInfoToRoom(appInformationList: List<AppInformation>)
-    suspend fun updateAppInfoToRoom(isLocked: Boolean, packageName: String)
+    suspend fun updateAppInfoToRoom(isLocked: Boolean, packageName: String, appName: String)
 }
