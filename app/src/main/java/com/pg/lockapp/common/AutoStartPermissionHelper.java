@@ -11,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -18,6 +19,7 @@ import java.util.List;
 
 /**
  * AutoStartPermissionHelper - Handles auto-start permissions for various Android devices.
+ *
  * @author koshurboii (telegram/Instagram/github : @koshurboii) © 2024
  */
 
@@ -96,7 +98,8 @@ public class AutoStartPermissionHelper {
     private AutoStartPermissionHelper() {
     }
 
-    public static AutoStartPermissionHelper getInstance() {
+    public static AutoStartPermissionHelper
+    getInstance() {
         return instance;
     }
 

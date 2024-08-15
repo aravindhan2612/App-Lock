@@ -24,7 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AppListViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repo: AppInformationRepository
+    private val repo: AppInformationRepository,
 ) : ViewModel() {
 
     var appListUiState: AppListUiState by mutableStateOf(AppListUiState.Loading)
@@ -42,9 +42,9 @@ class AppListViewModel @Inject constructor(
         val localApplicationList = getApplicationInfoWithoutSystemApps()
         if (localApplicationList.isNotEmpty()) {
             if (dbApplicationInfoList.isEmpty()) {
-              addAllAppInfoToRoom(localApplicationList)
+                addAllAppInfoToRoom(localApplicationList)
             } else {
-              addFilterAppInfosToRoom(dbApplicationInfoList, localApplicationList)
+                addFilterAppInfosToRoom(dbApplicationInfoList, localApplicationList)
             }
             // once retrieved application info adding to Ui state
         }
@@ -76,9 +76,14 @@ class AppListViewModel @Inject constructor(
         }
 
 
-    fun updateLockForApp(packageName: String, checked: Boolean, appName: String) = viewModelScope.launch {
-        repo.updateAppInfoToRoom(packageName = packageName, isLocked = checked, appName = appName)
-    }
+    fun updateLockForApp(packageName: String, checked: Boolean, appName: String) =
+        viewModelScope.launch {
+            repo.updateAppInfoToRoom(
+                packageName = packageName,
+                isLocked = checked,
+                appName = appName
+            )
+        }
 
     private fun getApplicationInfoWithoutSystemApps(): List<AppInformation> {
         val pm = context.packageManager
@@ -104,6 +109,7 @@ class AppListViewModel @Inject constructor(
             appInformation.icon = CommonHelper.getEncoded64ImageStringFromBitmap(
                 resolvedInfo.activityInfo.loadIcon(pm).toBitmap()
             )
+//            println("****** packaname= ${appInformation.packageName} ")
             localApplicationList.add(appInformation)
         }
         return localApplicationList

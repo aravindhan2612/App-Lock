@@ -18,11 +18,15 @@ import dagger.hilt.components.SingletonComponent
 class AppModule {
 
     @Provides
-    fun provideAppLockDataBase(@ApplicationContext context: Context) = Room.databaseBuilder(context, AppLockDataBase::class.java,Constants.APP_LOCK_DB_NAME).build()
+    fun provideAppLockDataBase(@ApplicationContext context: Context) =
+        Room.databaseBuilder(context, AppLockDataBase::class.java, Constants.APP_LOCK_DB_NAME)
+            .build()
 
     @Provides
-    fun provideAppInformationDao(appLockDataBase: AppLockDataBase) = appLockDataBase.appInformationDao()
+    fun provideAppInformationDao(appLockDataBase: AppLockDataBase) =
+        appLockDataBase.appInformationDao()
 
     @Provides
-    fun provideAppInformationRepository(appInformationDao: AppInformationDao): AppInformationRepository = AppInformationImpl(appInformationDao)
+    fun provideAppInformationRepository(appInformationDao: AppInformationDao): AppInformationRepository =
+        AppInformationImpl(appInformationDao)
 }

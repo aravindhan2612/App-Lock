@@ -62,10 +62,13 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    //viewmodel compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    //android room
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -77,9 +80,14 @@ dependencies {
     implementation(libs.dagger.hilt)
     ksp(libs.dagger.android.compiler)
     ksp(libs.dagger.compiler)
+    implementation(libs.hilt.navigation)
 
-    implementation (libs.hilt.navigation)
-    implementation(libs.accompanist)
+    // permission
+    implementation(libs.accompanist.permissions)
+    //navigation
     implementation(libs.androidx.navigation)
     implementation(libs.kotlinx.serialization.json)
+
+    //ProcessLifecycleOwner
+    implementation(libs.androidx.lifecycle.process)
 }

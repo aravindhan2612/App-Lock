@@ -15,6 +15,7 @@ hiltNavigationVersion = '1.2.0'
 accompanistVersion = '0.34.0'
 composeNavigation = "2.8.0-alpha08"
 serialization = "1.6.3"
+lifecycle-process = "2.8.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -39,9 +40,11 @@ dagger-hilt = { module = "com.google.dagger:hilt-android", version.ref = "hiltVe
 dagger-android-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hiltVersion" }
 dagger-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hiltVersion" }
 hilt-navigation = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationVersion" }
-accompanist = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistVersion" }
+accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistVersion" }
 androidx-navigation = { module = "androidx.navigation:navigation-compose", version.ref = "composeNavigation" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
+androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "lifecycle-process" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
