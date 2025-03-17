@@ -1,7 +1,8 @@
-package com.pg.lockapp.presentation
+package com.pg.lockapp
 
 import android.app.Application
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.pg.lockapp.presentation.MyLifecycleObserver
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -16,7 +17,7 @@ class LockAppApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        ProcessLifecycleOwner.get().lifecycle.addObserver(
+        ProcessLifecycleOwner.Companion.get().lifecycle.addObserver(
             MyLifecycleObserver(
             )
         )

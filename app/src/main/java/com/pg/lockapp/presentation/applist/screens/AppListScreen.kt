@@ -1,24 +1,20 @@
 package com.pg.lockapp.presentation.applist.screens
 
-import android.accessibilityservice.AccessibilityService
+import android.Manifest
 import android.app.AppOpsManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
-import android.text.TextUtils.SimpleStringSplitter
-import android.view.accessibility.AccessibilityEvent
-import android.view.accessibility.AccessibilityManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,123 +23,139 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
-import com.google.accompanist.permissions.shouldShowRationale
 import com.pg.lockapp.domain.models.enitites.AppInformation
 import com.pg.lockapp.domain.models.interfaces.AppListUiState
 import com.pg.lockapp.presentation.applist.items.AppInfoItem
 import com.pg.lockapp.presentation.applist.viewmodels.AppListViewModel
-import com.pg.lockapp.presentation.services.AutoStartService
-import kotlinx.coroutines.delay
+import com.pg.lockapp.presentation.services.LockScreenService
 import kotlinx.coroutines.launch
 
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun AppListScreen() {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        val notificationPermissionState =
-            rememberPermissionState(android.Manifest.permission.POST_NOTIFICATIONS)
-        if (notificationPermissionState.status.isGranted) {
-            RenderAppListScreen()
-        } else {
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                val textToShow = if (notificationPermissionState.status.shouldShowRationale) {
-                    "The notification is important for this app. Please grant the permission."
-                } else {
-                    "Please grant the permission for notification"
-                }
+fun AppListScreen(
+    paddingValues: PaddingValues,
+    appListViewModel: AppListViewModel = hiltViewModel()
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var hasNotificationPermission by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
 
-                Text(textToShow)
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(onClick = { notificationPermissionState.launchPermissionRequest() }) {
-                    Text("Request  permission")
+                ContextCompat.checkSelfPermission(
+                    context, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED
+            } else true
+        )
+    }
+    val permissionRequest =
+        rememberLauncherForActivityResult(contract = ActivityResultContracts.RequestPermission()) { result ->
+            hasNotificationPermission = result
+        }
+    val isDrawOverAccessGiven = remember {
+        mutableStateOf(
+            false
+        )
+    }
+    val isUsageStatsAccessGiven = remember {
+        mutableStateOf(
+            false
+        )
+    }
+    OnLifecycleEvent { owner, event ->
+        when (event) {
+            Lifecycle.Event.ON_RESUME -> {
+                isDrawOverAccessGiven.value = Settings.canDrawOverlays(context)
+                isUsageStatsAccessGiven.value = isUsageStatsPermissionGranted(
+                    context
+                )
+            }
+
+            else -> {
+            }
+        }
+    }
+    if (hasNotificationPermission && isDrawOverAccessGiven.value && isUsageStatsAccessGiven.value) {
+        RenderAppListScreen(paddingValues, appListViewModel)
+    } else {
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AnimatedVisibility(
+                visible = !hasNotificationPermission
+            ) {
+                Button(onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissionRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }) {
+                    Text(text = "Allow notification")
+                }
+            }
+            AnimatedVisibility(
+                visible = !isDrawOverAccessGiven.value
+            ) {
+                Button(onClick = {
+                    scope.launch {
+                        openDrawOverlaysSettings(context)
+                    }
+
+                }) {
+                    Text(text = "Allow Draw overlay access")
+                }
+            }
+            AnimatedVisibility(
+                visible = !isUsageStatsAccessGiven.value
+            ) {
+                Button(onClick = {
+                    scope.launch {
+                        openUsageAccessSettings(context)
+                    }
+                }) {
+                    Text(text = "Allow usage stats access")
                 }
             }
         }
-    } else {
-        RenderAppListScreen()
     }
 
 
 }
 
 @Composable
-fun RenderAppListScreen() {
-    val appListViewModel: AppListViewModel = hiltViewModel()
-    val context = LocalContext.current
-    val isDrawOverAccessGiven = remember {
-        mutableStateOf(
-            canDrawOverlays(
-                context
-            )
-        )
-    }
-//    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-//    context.startActivity(intent)
-    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-    intent.setData(Uri.parse("package:" + context.packageName))
-    context.startActivity(intent)
-    context.startForegroundService(Intent(context, AutoStartService::class.java))
-    val scope = rememberCoroutineScope()
-    scope.launch {
-        delay(1000)
-        println(
-            "******access enable ${
-                isAccessibilityServiceEnabled1(
-                    context,
-                    AccessibilityService::class.java
-                )
-            }"
-        )
-    }
+fun RenderAppListScreen(
+    paddingValues: PaddingValues,
+    appListViewModel: AppListViewModel
+) {
 
     when (appListViewModel.appListUiState) {
         is AppListUiState.Finished -> {
-            if (isDrawOverAccessGiven.value) {
-                RenderAppList()
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    AnimatedVisibility(
-                        visible = !isDrawOverAccessGiven.value
-                    ) {
-                        Button(onClick = {
-                            scope.launch {
-                                openDrawOverlaysSettings(context)
-                                isDrawOverAccessGiven.value = true
-                            }
-                        }) {
-                            Text(text = "Give draw over the app access")
-                        }
-                    }
-
-                }
-            }
-
+            RenderAppList(paddingValues, appListViewModel)
         }
 
         is AppListUiState.Loading -> {
@@ -151,8 +163,8 @@ fun RenderAppListScreen() {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
+                    .padding(paddingValues)
+                    .fillMaxSize()
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.width(64.dp),
@@ -165,33 +177,42 @@ fun RenderAppListScreen() {
 }
 
 @Composable
-fun RenderAppList(appListViewModel: AppListViewModel = hiltViewModel()) {
+fun RenderAppList(
+    paddingValues: PaddingValues,
+    appListViewModel: AppListViewModel
+) {
     val context = LocalContext.current
     val appInfos by appListViewModel.appInfos.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
-    if (appInfos.any { it.isLocked }) {
+    LaunchedEffect(appInfos) {
         scope.launch {
-            context.startForegroundService(Intent(context, AutoStartService::class.java))
-        }
-    } else {
-        scope.launch {
-            context.stopService(Intent(context, AutoStartService::class.java))
+            if (appInfos.any { it.isLocked }) {
+                context.startService(Intent(context, LockScreenService::class.java))
+            } else {
+                context.stopService(Intent(context, LockScreenService::class.java))
+            }
         }
     }
+
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
+            .padding(paddingValues)
+            .fillMaxSize()
     ) {
-        LazyColumn() {
+        LazyColumn {
             items(appInfos) { appInfo: AppInformation ->
                 AppInfoItem(appInfo = appInfo, onCheckedChange = { checked ->
                     scope.launch {
-                        if (!appInfo.packageName.isNullOrEmpty() && !appInfo.appName.isNullOrEmpty()) appListViewModel.updateLockForApp(
-                            packageName = appInfo.packageName!!,
-                            checked,
-                            appName = appInfo.appName!!
-                        )
+                        if (checked) {
+                            context.startService(Intent(context, LockScreenService::class.java))
+                        }
+                        if (!appInfo.packageName.isNullOrEmpty() && !appInfo.appName.isNullOrEmpty()) {
+                            appListViewModel.updateLockForApp(
+                                packageName = appInfo.packageName!!,
+                                checked,
+                                appName = appInfo.appName!!
+                            )
+                        }
                     }
                 })
             }
@@ -199,83 +220,51 @@ fun RenderAppList(appListViewModel: AppListViewModel = hiltViewModel()) {
     }
 }
 
-fun isUsageStatsPermissionGranted(context: Context): Boolean {
-    val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-    val packageManager = context.packageManager;
-    val applicationInfo = packageManager.getApplicationInfo(context.packageName, 0)
-
-    val mode = appOps.unsafeCheckOpNoThrow(
-        AppOpsManager.OPSTR_GET_USAGE_STATS, applicationInfo.uid, context.packageName
-    )
-    return mode == AppOpsManager.MODE_ALLOWED
-
-}
 
 fun openUsageAccessSettings(context: Context) {
     val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
     context.startActivity(intent)
 }
 
-fun canDrawOverlays(context: Context): Boolean {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        Settings.canDrawOverlays(context)
-    } else {
-        true
-    }
-}
 
 fun openDrawOverlaysSettings(context: Context) {
-    val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        Intent(
-            Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + context.packageName)
-        )
-    } else {
-        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-    }
+    val intent = Intent(
+        Settings.ACTION_MANAGE_OVERLAY_PERMISSION, ("package:" + context.packageName).toUri()
+    )
     context.startActivity(intent)
 }
 
-fun isAccessibilityServiceEnabled(
-    context: Context, service: Class<out AccessibilityService?>?
-): Boolean {
-    val expectedComponentName = ComponentName(context, service!!)
+private fun isUsageStatsPermissionGranted(context: Context): Boolean {
+    val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+    val packageManager = context.packageManager
+    val applicationInfo = packageManager.getApplicationInfo(context.packageName, 0)
 
-    val enabledServicesSetting = Settings.Secure.getString(
-        context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-    )
-
-    if (enabledServicesSetting == null) {
-        return false
+    val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        appOps.unsafeCheckOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS, applicationInfo.uid, context.packageName
+        )
+    } else {
+        AppOpsManager.MODE_ALLOWED
     }
+    return mode == AppOpsManager.MODE_ALLOWED
 
-    val colonSplitter = SimpleStringSplitter(':')
-    colonSplitter.setString(enabledServicesSetting)
-
-    while (colonSplitter.hasNext()) {
-        val componentName = colonSplitter.next()
-        if (componentName.equals(expectedComponentName.flattenToString(), ignoreCase = true)) {
-            return true
-        }
-    }
-
-    return false
 }
 
-fun isAccessibilityServiceEnabled1(
-    context: Context,
-    serviceName: Class<out AccessibilityService?>?
-): Boolean {
-    val accessibilityManager =
-        context.getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
-    val enabledServices =
-        accessibilityManager.getEnabledAccessibilityServiceList(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
-    println("*******Service ${serviceName?.name} ${serviceName?.`package`} ${enabledServices} ")
-    for (service in enabledServices) {
-        println("*******id ${service.id}")
-        if (service.id == serviceName?.name) {
-            return true
+@Composable
+fun OnLifecycleEvent(onEvent: (owner: LifecycleOwner, event: Lifecycle.Event) -> Unit) {
+    val eventHandler = rememberUpdatedState(onEvent)
+    val lifecycleOwner = rememberUpdatedState(LocalLifecycleOwner.current)
+
+    DisposableEffect(lifecycleOwner.value) {
+        val lifecycle = lifecycleOwner.value.lifecycle
+        val observer = LifecycleEventObserver { owner, event ->
+            eventHandler.value(owner, event)
+        }
+
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
         }
     }
-    return false
 }
 

@@ -6,6 +6,7 @@ sealed class Screen {
 
     @Serializable
     object AppList : Screen()
+
     @Serializable
-    object ChatList : Screen()
+    object Settings : Screen()
 }

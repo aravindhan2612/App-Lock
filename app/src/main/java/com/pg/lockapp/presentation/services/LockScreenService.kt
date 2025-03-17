@@ -1,23 +1,22 @@
 package com.pg.lockapp.presentation.services
 
-import android.accessibilityservice.AccessibilityService
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
+import android.app.Service
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.os.Build
-import android.util.Log
+import android.os.IBinder
 import android.view.WindowManager
-import android.view.accessibility.AccessibilityEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
@@ -31,10 +30,10 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.pg.lockapp.LockAppApplication.Companion.CHANNEL_ID
+import com.pg.lockapp.LockAppApplication.Companion.CHANNEL_NAME
 import com.pg.lockapp.R
 import com.pg.lockapp.domain.repository.AppInformationRepository
-import com.pg.lockapp.presentation.LockAppApplication.Companion.CHANNEL_ID
-import com.pg.lockapp.presentation.LockAppApplication.Companion.CHANNEL_NAME
 import com.pg.lockapp.presentation.MyLifecycleOwner
 import com.pg.lockapp.presentation.activity.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
@@ -47,57 +46,41 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class AutoStartService : AccessibilityService() {
+class LockScreenService : Service() {
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
     private val windowManager get() = getSystemService(WINDOW_SERVICE) as WindowManager
-    private var visibility = false
+    private var isRunning = false;
+    private var isVisible = false;
 
     @Inject
     lateinit var repo: AppInformationRepository
 
     override fun onCreate() {
         super.onCreate()
+        isRunning = true;
         createNotification()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType?.equals(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) == true) {
-            val packageName = event.packageName.toString()
-            scope.launch(Dispatchers.IO) {
-                val isLockedApps = repo.getAppInfosFromRoom().filter { app -> app.isLocked }
-                withContext(Dispatchers.Main) {
-                    Log.d("********App Launch", "App launched: $packageName")
-                    if (isLockedApps.find { app -> app.packageName == packageName } != null && !visibility) {
-                        visibility = true
-                        showOverlay { view ->
-                            windowManager.removeView(view)
-                            visibility = false
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    override fun onInterrupt() {
-        println("******onInterrupt called")
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        startAppMonitoring()
         return START_STICKY
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        println("******onInterrupt called")
         scope.launch {
             delay(5000)
             val broadcastIntent = Intent("com.pg.lockapp.presentation.services.AutoStartService")
             sendBroadcast(broadcastIntent)
         }
+        isRunning = false
+        job.cancel()
+    }
 
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
     }
 
     private fun createNotification() {
@@ -112,7 +95,7 @@ class AutoStartService : AccessibilityService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH).setAutoCancel(false).build()
         notification.flags = Notification.FLAG_NO_CLEAR
         val notificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel =
                 NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH)
@@ -142,19 +125,9 @@ class AutoStartService : AccessibilityService() {
 
         val composeView = ComposeView(this)
         composeView.setContent {
-
-//                Text(
-//                    text = "Hello",
-//                    color = Color.Black,
-//                    fontSize = 50.sp,
-//                    modifier = Modifier
-//                        .wrapContentSize()
-//                        .background(color = Color.Green)
-//                )
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
+                    .fillMaxSize()
                     .background(color = Color.White),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
@@ -180,6 +153,42 @@ class AutoStartService : AccessibilityService() {
         composeView.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
         composeView.setViewTreeViewModelStoreOwner(viewModelStoreOwner)
         windowManager.addView(composeView, params)
+    }
+
+    private fun startAppMonitoring() {
+        scope.launch {
+            val usageStatsManager =
+                getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
+            val isLockedApps = repo.getAppInfosFromRoom().filter { app -> app.isLocked }
+            var lastForegroundApp: String? = null
+
+            while (isRunning) {
+                val currentTime = System.currentTimeMillis();
+                val interval = 1000; // 1 second
+                val usageEvents =
+                    usageStatsManager.queryEvents(currentTime - interval, currentTime);
+
+                val event = UsageEvents.Event();
+                while (usageEvents.hasNextEvent()) {
+                    usageEvents.getNextEvent(event);
+                    if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
+                        val appInformation =
+                            isLockedApps.find { app -> app.packageName == event.packageName }
+                        if (appInformation != null && !isVisible) {
+                            isVisible = true
+                            // The locked app is now in the foreground
+                            withContext(Dispatchers.Main) {
+                                showOverlay(onClick = { view ->
+                                    windowManager.removeView(view)
+                                    isVisible = false
+                                }) // Implement locking logic
+                            }
+                        }
+                    }
+                }
+                delay(1000) // Check every second
+            }
+        }
     }
 
 }

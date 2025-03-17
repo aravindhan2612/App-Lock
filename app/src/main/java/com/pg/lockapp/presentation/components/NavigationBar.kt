@@ -1,6 +1,8 @@
 package com.pg.lockapp.presentation.components
 
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -10,7 +12,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -22,7 +23,6 @@ import com.pg.lockapp.presentation.theme.aqua20
 
 @Composable
 fun BottomNavigationBar(navController: NavController) {
-    val context = LocalContext.current
     val selectedIndex = remember {
         mutableIntStateOf(0)
     }
@@ -38,7 +38,7 @@ fun BottomNavigationBar(navController: NavController) {
             }, icon = {
                 Icon(
                     imageVector = ImageVector.vectorResource(id = R.drawable.baseline_apps_24),
-                    contentDescription = "chat",
+                    contentDescription = "Apps",
                     modifier = Modifier.size(iconSize),
                     tint = aqua20
                 )
@@ -51,17 +51,17 @@ fun BottomNavigationBar(navController: NavController) {
             selected = selectedIndex.intValue == 1,
             onClick = {
                 selectedIndex.intValue = 1
-                navController.navigate(Screen.ChatList)
+                navController.navigate(Screen.Settings)
             }, icon = {
                 Icon(
-                    imageVector = ImageVector.vectorResource(id = R.drawable.outline_chat_24),
-                    contentDescription = "chat",
+                    imageVector = Icons.Filled.Settings,
+                    contentDescription = "Settings",
                     modifier = Modifier.size(iconSize),
                     tint = aqua20
                 )
             },
             label = {
-                Text(text = "Chat")
+                Text(text = "Settings")
             }
         )
     }

@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
-import com.pg.lockapp.presentation.services.AutoStartService;
+import com.pg.lockapp.presentation.services.LockScreenService;
 
 public class RestartServiceReceiver extends BroadcastReceiver {
 
@@ -15,7 +15,7 @@ public class RestartServiceReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         Log.d(TAG, "RestartServiceReceiver triggered");
         System.out.println("RestartServiceReceiver triggered");
-        Intent serviceIntent = new Intent(context, AutoStartService.class);
+        Intent serviceIntent = new Intent(context, LockScreenService.class);
         context.startService(serviceIntent);
     }
 }
